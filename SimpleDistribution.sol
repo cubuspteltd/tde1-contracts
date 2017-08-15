@@ -1,4 +1,4 @@
-pragma solidity ^0.4.11;
+pragma solidity 0.4.11;
 
 import "./SafeMathLib.sol";
 import "./SimpleToken.sol";
@@ -37,13 +37,15 @@ contract Haltable is Ownable {
 
 }
 
-
+/*
+* The main contract for the Token Distribution Event
+*/
 
 contract SimpleDistribution is Haltable {
 
   using SafeMathLib for uint;
 
-  address public wallet;
+  address public wallet; // an account for receiving 
   uint public start;
   uint public end;
   SimpleToken public token;

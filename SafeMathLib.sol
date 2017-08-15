@@ -1,4 +1,4 @@
-pragma solidity ^0.4.11;
+pragma solidity 0.4.11;
 
 /**
  * Safe unsigned safe math.
@@ -35,3 +35,4 @@ library SafeMathLib {
     if (!assertion) revert();
   }
 }
+
