@@ -1,6 +1,6 @@
 pragma solidity 0.4.13;
 
-import "./SafeMathLib.sol";
+import "./SafeMath.sol";
 import "./SimpleToken.sol";
 
 /*
@@ -43,19 +43,19 @@ contract Haltable is Ownable {
 
 contract SimpleDistribution is Haltable {
 
-  using SafeMathLib for uint;
+  using SafeMath for uint;
 
-  address public wallet; // an account for receiving 
-  uint public start;
-  uint public end;
-  SimpleToken public token;
-  uint public weiGoal;
-  uint public contributorsCount = 0;
-  uint public weiTotal = 0;
-  uint public tokensSold = 0;
-  uint public loadedRefund = 0;
-  uint public weiRefunded = 0;
-  mapping (address => uint) public contributed;
+  address public wallet;                // an account for receiving 
+  uint public start;                    // start time
+  uint public end;                      // end time
+  SimpleToken public token;             // token contract address
+  uint public weiGoal;                  // minimum wei amount we want to get
+  uint public contributorsCount = 0;    // number of contributors
+  uint public weiTotal = 0;             // total wei amount we have received
+  uint public tokensSold = 0;           // tokens sold
+  uint public loadedRefund = 0;         // wei amount for refund
+  uint public weiRefunded = 0;          // wei amount refunded
+  mapping (address => uint) public contributed;        // list of contributors
 
   enum States {Preparing, Distribution, Success, Failure, Refunding}
 
@@ -82,9 +82,9 @@ contract SimpleDistribution is Haltable {
   function contributeInternal(address receiver, uint weiAmount) stopInEmergency internal {
     uint tokenAmount = weiAmount * 1000;
     if (contributed[receiver] == 0) contributorsCount++;
-    contributed[receiver] = contributed[receiver].plus(weiAmount);    
-    tokensSold = tokensSold.plus(tokenAmount);
-    weiTotal = weiTotal.plus(weiAmount);
+    contributed[receiver] = contributed[receiver].add(weiAmount);    
+    tokensSold = tokensSold.add(tokenAmount);
+    weiTotal = weiTotal.add(weiAmount);
     token.distribute(wallet, receiver, tokenAmount);
     wallet.transfer(weiAmount);
     Contributed(receiver, weiAmount, tokenAmount);
@@ -102,8 +102,8 @@ contract SimpleDistribution is Haltable {
    * Allow load refunds back on the contract for the refunding.
    */
   function loadRefund() payable inState(States.Failure) {
-    if(msg.value == 0) revert();
-    loadedRefund = loadedRefund.plus(msg.value);
+    if (msg.value == 0) revert();
+    loadedRefund = loadedRefund.add(msg.value);
   }
 
   /*
@@ -113,7 +113,7 @@ contract SimpleDistribution is Haltable {
     uint weiValue = contributed[msg.sender];
     if (weiValue == 0) revert();
     contributed[msg.sender] = 0;
-    weiRefunded = weiRefunded.plus(weiValue);
+    weiRefunded = weiRefunded.add(weiValue);
     Refund(msg.sender, weiValue);
     msg.sender.transfer(weiValue);
   }

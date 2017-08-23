@@ -1,6 +1,6 @@
 pragma solidity 0.4.13;
 
-import "./SafeMathLib.sol";
+import "./SafeMath.sol";
 
 /*
  * ERC20 interface
@@ -19,67 +19,15 @@ contract ERC20 {
 }
 
 
-
-/**
- * Math operations with safety checks
- */
-contract SafeMath {
-  function safeMul(uint a, uint b) internal returns (uint) {
-    uint c = a * b;
-    assert(a == 0 || c / a == b);
-    return c;
-  }
-
-  function safeDiv(uint a, uint b) internal returns (uint) {
-    assert(b > 0);
-    uint c = a / b;
-    assert(a == b * c + a % b);
-    return c;
-  }
-
-  function safeSub(uint a, uint b) internal returns (uint) {
-    assert(b <= a);
-    return a - b;
-  }
-
-  function safeAdd(uint a, uint b) internal returns (uint) {
-    uint c = a + b;
-    assert(c>=a && c>=b);
-    return c;
-  }
-
-  function max64(uint64 a, uint64 b) internal constant returns (uint64) {
-    return a >= b ? a : b;
-  }
-
-  function min64(uint64 a, uint64 b) internal constant returns (uint64) {
-    return a < b ? a : b;
-  }
-
-  function max256(uint256 a, uint256 b) internal constant returns (uint256) {
-    return a >= b ? a : b;
-  }
-
-  function min256(uint256 a, uint256 b) internal constant returns (uint256) {
-    return a < b ? a : b;
-  }
-
-  function assert(bool assertion) internal {
-    if (!assertion) {
-      revert();
-    }
-  }
-}
-
-
-
 /**
  * Standard ERC20 token with Short Hand Attack and approve() race condition mitigation.
  *
  * Based on code by FirstBlood:
  * https://github.com/Firstbloodio/token/blob/master/smart_contract/FirstBloodToken.sol
  */
-contract StandardToken is ERC20, SafeMath {
+contract StandardToken is ERC20 {
+
+  using SafeMath for uint;
 
   /* A new owner received tokens */
   event Sold(address receiver, uint amount);
@@ -109,8 +57,8 @@ contract StandardToken is ERC20, SafeMath {
   }
 
   function transfer(address _to, uint _value) onlyPayloadSize(2 * 32) returns (bool success) {
-    balances[msg.sender] = safeSub(balances[msg.sender], _value);
-    balances[_to] = safeAdd(balances[_to], _value);
+    balances[msg.sender].sub(_value);
+    balances[_to].add(_value);
     Transfer(msg.sender, _to, _value);
     return true;
   }
@@ -118,9 +66,9 @@ contract StandardToken is ERC20, SafeMath {
   function transferFrom(address _from, address _to, uint _value) returns (bool success) {
     uint _allowance = allowed[_from][msg.sender];
 
-    balances[_to] = safeAdd(balances[_to], _value);
-    balances[_from] = safeSub(balances[_from], _value);
-    allowed[_from][msg.sender] = safeSub(_allowance, _value);
+    balances[_to].add(_value);
+    balances[_from].sub(_value);
+    allowed[_from][msg.sender] = _allowance.sub(_value);
     Transfer(_from, _to, _value);
     return true;
   }
@@ -191,8 +139,6 @@ contract Ownable {
 
 contract SimpleToken is StandardToken, Ownable {
 
-  using SafeMathLib for uint;
-
   string public name;
   string public symbol;
   uint public decimals;
@@ -240,8 +186,8 @@ contract SimpleToken is StandardToken, Ownable {
   * Only distribution contract can assign tokens
   */
   function distribute(address _sender, address _receiver, uint _amount) onlyDistribution {
-    balances[_receiver] = balances[_receiver].plus(_amount);
-    balances[_sender] = balances[_sender].minus(_amount);
+    balances[_receiver] = balances[_receiver].add(_amount);
+    balances[_sender] = balances[_sender].sub(_amount);
     Transfer(_sender, _receiver, _amount);
   }
 
