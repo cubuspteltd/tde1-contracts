@@ -47,10 +47,15 @@ contract StandardToken is ERC20 {
    * http://vessenes.com/the-erc20-short-address-attack-explained/
    */
   modifier onlyPayloadSize(uint size) {
-    require(msg.data.length >= size + 4);
+    assert(msg.data.length >= size + 4);
     _;
   }
 
+  /**
+  * @dev transfer token for a specified address
+  * @param _to The address to transfer to.
+  * @param _value The amount to be transferred.
+  */
   function transfer(address _to, uint _value) onlyPayloadSize(2 * 32) returns (bool) {
     balances[msg.sender] = balances[msg.sender].sub(_value);
     balances[_to] = balances[_to].add(_value);
@@ -58,6 +63,12 @@ contract StandardToken is ERC20 {
     return true;
   }
 
+  /**
+   * @dev Transfer tokens from one address to another
+   * @param _from address The address which you want to send tokens from
+   * @param _to address The address which you want to transfer to
+   * @param _value uint256 the amount of tokens to be transferred
+   */
   function transferFrom(address _from, address _to, uint _value) returns (bool) {
     uint _allowance = allowed[_from][msg.sender];
 
@@ -68,10 +79,20 @@ contract StandardToken is ERC20 {
     return true;
   }
 
+  /**
+  * @dev Gets the balance of the specified address.
+  * @param _owner The address to query the the balance of. 
+  * @return An uint256 representing the amount owned by the passed address.
+  */
   function balanceOf(address _owner) constant returns (uint balance) {
     return balances[_owner];
   }
-
+  
+  /**
+   * @dev Approve the passed address to spend the specified amount of tokens on behalf of msg.sender.
+   * @param _spender The address which will spend the funds.
+   * @param _value The amount of tokens to be spent.
+   */
   function approve(address _spender, uint _value) returns (bool success) {
 
     // To change the approve amount you first have to reduce the addresses`
@@ -85,6 +106,12 @@ contract StandardToken is ERC20 {
     return true;
   }
 
+  /**
+   * @dev Function to check the amount of tokens that an owner allowed to a spender.
+   * @param _owner address The address which owns the funds.
+   * @param _spender address The address which will spend the funds.
+   * @return A uint256 specifying the amount of tokens still available for the spender.
+   */
   function allowance(address _owner, address _spender) constant returns (uint remaining) {
     return allowed[_owner][_spender];
   }
@@ -101,7 +128,6 @@ contract StandardToken is ERC20 {
 contract Ownable {
   address public owner;
 
-
   /**
    * @dev The Ownable constructor sets the original `owner` of the contract to the sender
    * account.
@@ -110,7 +136,6 @@ contract Ownable {
     owner = msg.sender;
   }
 
-
   /**
    * @dev Throws if called by any account other than the owner.
    */
@@ -118,7 +143,6 @@ contract Ownable {
     require(msg.sender == owner);
     _;
   }
-
 
   /**
    * @dev Allows the current owner to transfer control of the contract to a newOwner.
@@ -138,24 +162,27 @@ contract SimpleToken is StandardToken, Ownable {
   string public symbol;
   uint public decimals;
 
-  address public distributionContract;
+  address public distributionContract = address(0);
 
   bool public released = false;
 
   /*
-  * Only distribution contract allowed
+  * Only distribution contract or owner allowed
   */
   modifier onlyDistribution() {
-    require(msg.sender == distributionContract);
+    if (msg.sender != owner)
+      require(msg.sender == distributionContract);
     _;
   }
 
   /**
    * Limit token transfer until the distribution is over.
+   * Owner can transfer tokens anytime
    *
    */
   modifier canTransfer(address _sender) {
-    require(released);
+    if (_sender != owner)
+      require(released);
     _;
   }
 
@@ -167,9 +194,9 @@ contract SimpleToken is StandardToken, Ownable {
   }
 
   /**
-   * Distribution contract sets its and wallet addresses. All token balance is assigned to wallet address.
+   * Owner sets distribution contract and wallet addresses. All token balance is assigned to wallet address.
    */
-  function initialize(address _distributionContract, address _initialAddr) {
+  function initialize(address _distributionContract, address _initialAddr) onlyOwner {
     // The function can start only once
     require(distributionContract ==  address(0));
     require((_distributionContract != address(0)) && (_initialAddr != address(0)));
@@ -182,6 +209,7 @@ contract SimpleToken is StandardToken, Ownable {
   * Only distribution contract can assign tokens
   */
   function distribute(address _sender, address _receiver, uint _amount) onlyDistribution {
+    require(balances[_sender] >= _amount);
     balances[_receiver] = balances[_receiver].add(_amount);
     balances[_sender] = balances[_sender].sub(_amount);
     Transfer(_sender, _receiver, _amount);

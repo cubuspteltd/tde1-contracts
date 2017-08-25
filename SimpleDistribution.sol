@@ -13,15 +13,15 @@ import "./SimpleToken.sol";
  * Originally envisioned in FirstBlood ICO contract.
  */
 contract Haltable is Ownable {
-  bool public halted;
+  bool public halted = false;
 
   modifier stopInEmergency {
-    if (halted) revert();
+    require(!halted);
     _;
   }
 
   modifier onlyInEmergency {
-    if (!halted) revert();
+    require(halted);
     _;
   }
 
@@ -72,17 +72,12 @@ contract SimpleDistribution is Haltable {
     end = _end;
     weiGoal = _weiGoal;
     wallet = _wallet;
-
-    token.initialize(this, wallet);
-
-    // Checks if our token's initialization have not been set
-    require(token.distributionContract() == address(this));
   }
 
   function contributeInternal(address receiver, uint weiAmount) stopInEmergency internal {
     uint tokenAmount = weiAmount * 1000;
     if (contributed[receiver] == 0) contributorsCount++;
-    contributed[receiver] = contributed[receiver].add(weiAmount);    
+    contributed[receiver] = contributed[receiver].add(weiAmount);
     tokensSold = tokensSold.add(tokenAmount);
     weiTotal = weiTotal.add(weiAmount);
     token.distribute(wallet, receiver, tokenAmount);
