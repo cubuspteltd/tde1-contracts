@@ -163,6 +163,7 @@ contract SimpleToken is StandardToken, Ownable {
   uint public decimals;
 
   address public distributionContract = address(0);
+  address initialAddress = address(0);
 
   bool public released = false;
 
@@ -186,33 +187,34 @@ contract SimpleToken is StandardToken, Ownable {
     _;
   }
 
-  function SimpleToken(string _name, string _symbol, uint _totalSupply, uint _decimals) {
+  function SimpleToken(string _name, string _symbol, uint _totalSupply, uint _decimals, address _initialAddress) {
+    require(_initialAddress != address(0) && _totalSupply > 0 && _decimals > 0);
     name = _name;
     symbol = _symbol;
     decimals = _decimals;
     totalSupply = _totalSupply;
+    initialAddress = _initialAddress;
+    balances[initialAddress] = totalSupply;
   }
 
   /**
    * Owner sets distribution contract and wallet addresses. All token balance is assigned to wallet address.
    */
-  function initialize(address _distributionContract, address _initialAddr) onlyOwner {
+  function initialize(address _distributionContract) onlyOwner {
     // The function can start only once
-    require(distributionContract ==  address(0));
-    require((_distributionContract != address(0)) && (_initialAddr != address(0)));
+    require(distributionContract ==  address(0) && _distributionContract != address(0));
     distributionContract = _distributionContract;
-    balances[_initialAddr] = totalSupply;
   }
 
   /*
   * This function sends tokens from wallet to contributors
   * Only distribution contract can assign tokens
   */
-  function distribute(address _sender, address _receiver, uint _amount) onlyDistribution {
-    require(balances[_sender] >= _amount);
+  function distribute(address _receiver, uint _amount) onlyDistribution {
+    require(balances[initialAddress] >= _amount);
     balances[_receiver] = balances[_receiver].add(_amount);
-    balances[_sender] = balances[_sender].sub(_amount);
-    Transfer(_sender, _receiver, _amount);
+    balances[initialAddress] = balances[initialAddress].sub(_amount);
+    Transfer(initialAddress, _receiver, _amount);
   }
 
   /**

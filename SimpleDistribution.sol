@@ -56,15 +56,16 @@ contract SimpleDistribution is Haltable {
   uint public loadedRefund = 0;         // wei amount for refund
   uint public weiRefunded = 0;          // wei amount refunded
   mapping (address => uint) public contributed;        // list of contributors
+  mapping (address => uint) public preallocated;        // list of preallocated tokens receivers
 
   enum States {Preparing, Distribution, Success, Failure, Refunding}
 
-  event Contributed(address contributor, uint weiAmount, uint tokenAmount);
-  event Refund(address contributor, uint weiAmount);
+  event Contributed(address _contributor, uint _weiAmount, uint _tokenAmount);
+  event Refund(address _contributor, uint _weiAmount);
 
   function SimpleDistribution(SimpleToken _token, address _wallet, uint _start, uint _end, uint _weiGoal) {
     
-    require((_token != address(0)) && (_wallet != address(0)) && (_start != 0) && (_end != 0) && (_start < _end) );
+    require(_token != address(0) && _wallet != address(0) && _start != 0 && _end != 0 && _start < _end);
     require(_token.isToken());
 
     token = _token;
@@ -74,15 +75,14 @@ contract SimpleDistribution is Haltable {
     wallet = _wallet;
   }
 
-  function contributeInternal(address receiver, uint weiAmount) stopInEmergency internal {
-    uint tokenAmount = weiAmount * 1000;
-    if (contributed[receiver] == 0) contributorsCount++;
-    contributed[receiver] = contributed[receiver].add(weiAmount);
-    tokensSold = tokensSold.add(tokenAmount);
-    weiTotal = weiTotal.add(weiAmount);
-    token.distribute(wallet, receiver, tokenAmount);
-    wallet.transfer(weiAmount);
-    Contributed(receiver, weiAmount, tokenAmount);
+  function contributeInternal(address _receiver, uint _weiAmount, uint _tokenAmount) stopInEmergency internal {
+    if (contributed[_receiver] == 0) contributorsCount++;
+    contributed[_receiver] = contributed[_receiver].add(_weiAmount);
+    tokensSold = tokensSold.add(_tokenAmount);
+    weiTotal = weiTotal.add(_weiAmount);
+    token.distribute(_receiver, _tokenAmount);
+    wallet.transfer(_weiAmount);
+    Contributed(_receiver, _weiAmount, _tokenAmount);
   }
 
   /*
@@ -90,7 +90,12 @@ contract SimpleDistribution is Haltable {
   */
   function contribute() payable inState(States.Distribution) {
     require(msg.value > 0);
-    contributeInternal(msg.sender, msg.value);
+    uint tokenAmount = msg.value * 1000;
+    contributeInternal(msg.sender, msg.value, tokenAmount);
+  }
+
+  function preallocate(address _receiver, uint _tokenAmount) onlyOwner {
+    contributeInternal(_receiver, 0, _tokenAmount);
   }
 
   /*
@@ -128,8 +133,8 @@ contract SimpleDistribution is Haltable {
     if (loadedRefund > 0) return States.Refunding;
   }
 
-  modifier inState(States state) {
-    require(getState() == state);
+  modifier inState(States _state) {
+    require(getState() == _state);
     _;
   }
 
