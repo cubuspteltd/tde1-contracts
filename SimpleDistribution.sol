@@ -1,4 +1,4 @@
-pragma solidity 0.4.13;
+pragma solidity ^0.4.13;
 
 import "./SafeMath.sol";
 import "./SimpleToken.sol";
@@ -64,19 +64,19 @@ contract SimpleDistribution is Haltable {
 
   function SimpleDistribution(SimpleToken _token, address _wallet, uint _start, uint _end, uint _weiGoal) {
     
-    if (_token == address(0) || _wallet == address(0) || _start == 0 || _end == 0 || _start >= _end) revert();
+    require((_token != address(0)) && (_wallet != address(0)) && (_start != 0) && (_end != 0) && (_start < _end) );
+    require(_token.isToken());
 
     token = _token;
-    
-    if (!token.isToken()) revert();
-    
     start = _start;
     end = _end;
     weiGoal = _weiGoal;
     wallet = _wallet;
 
     token.initialize(this, wallet);
-    if (token.distributionContract() != address(this)) revert();
+
+    // Checks if our token's initialization have not been set
+    require(token.distributionContract() == address(this));
   }
 
   function contributeInternal(address receiver, uint weiAmount) stopInEmergency internal {
@@ -94,7 +94,7 @@ contract SimpleDistribution is Haltable {
   * Contributors can make payment and receive their tokens
   */
   function contribute() payable inState(States.Distribution) {
-    if (msg.value == 0) revert();
+    require(msg.value > 0);
     contributeInternal(msg.sender, msg.value);
   }
 
@@ -102,7 +102,7 @@ contract SimpleDistribution is Haltable {
    * Allow load refunds back on the contract for the refunding.
    */
   function loadRefund() payable inState(States.Failure) {
-    if (msg.value == 0) revert();
+    require(msg.value > 0);
     loadedRefund = loadedRefund.add(msg.value);
   }
 
@@ -111,7 +111,7 @@ contract SimpleDistribution is Haltable {
    */
   function refund() inState(States.Refunding) {
     uint weiValue = contributed[msg.sender];
-    if (weiValue == 0) revert();
+    require(weiValue > 0);
     contributed[msg.sender] = 0;
     weiRefunded = weiRefunded.add(weiValue);
     Refund(msg.sender, weiValue);
@@ -127,14 +127,14 @@ contract SimpleDistribution is Haltable {
   */
   function getState() constant returns (States) {
     if (token.distributionContract() == address(0) || now < start) return States.Preparing;
-    else if (now >= start && now < end) return States.Distribution;
-    else if (weiTotal >= weiGoal) return States.Success;
-    else if (now >= end && weiTotal < weiGoal && loadedRefund == 0) return States.Failure;
-    else if (loadedRefund > 0) return States.Refunding;
+    if (now >= start && now < end) return States.Distribution;
+    if (weiTotal >= weiGoal) return States.Success;
+    if (now >= end && weiTotal < weiGoal && loadedRefund == 0) return States.Failure;
+    if (loadedRefund > 0) return States.Refunding;
   }
 
   modifier inState(States state) {
-    if(getState() != state) revert();
+    require(getState() == state);
     _;
   }
 

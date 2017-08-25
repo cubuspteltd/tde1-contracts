@@ -1,4 +1,4 @@
-pragma solidity 0.4.13;
+pragma solidity ^0.4.13;
 
 import "./SafeMath.sol";
 
@@ -11,8 +11,8 @@ contract ERC20 {
   function balanceOf(address who) constant returns (uint);
   function allowance(address owner, address spender) constant returns (uint);
 
-  function transfer(address to, uint value) returns (bool ok);
-  function transferFrom(address from, address to, uint value) returns (bool ok);
+  function transfer(address to, uint value) returns (bool);
+  function transferFrom(address from, address to, uint value) returns (bool);
   function approve(address spender, uint value) returns (bool ok);
   event Transfer(address indexed from, address indexed to, uint value);
   event Approval(address indexed owner, address indexed spender, uint value);
@@ -29,9 +29,6 @@ contract StandardToken is ERC20 {
 
   using SafeMath for uint;
 
-  /* A new owner received tokens */
-  event Sold(address receiver, uint amount);
-
   /* Actual balances of token holders */
   mapping(address => uint) balances;
 
@@ -39,7 +36,7 @@ contract StandardToken is ERC20 {
   mapping (address => mapping (address => uint)) allowed;
 
   /* Interface declaration */
-  function isToken() public constant returns (bool weAre) {
+  function isToken() public constant returns (bool) {
     return true;
   }
 
@@ -50,24 +47,22 @@ contract StandardToken is ERC20 {
    * http://vessenes.com/the-erc20-short-address-attack-explained/
    */
   modifier onlyPayloadSize(uint size) {
-     if(msg.data.length < size + 4) {
-       revert();
-     }
-     _;
+    require(msg.data.length >= size + 4);
+    _;
   }
 
-  function transfer(address _to, uint _value) onlyPayloadSize(2 * 32) returns (bool success) {
-    balances[msg.sender].sub(_value);
-    balances[_to].add(_value);
+  function transfer(address _to, uint _value) onlyPayloadSize(2 * 32) returns (bool) {
+    balances[msg.sender] = balances[msg.sender].sub(_value);
+    balances[_to] = balances[_to].add(_value);
     Transfer(msg.sender, _to, _value);
     return true;
   }
 
-  function transferFrom(address _from, address _to, uint _value) returns (bool success) {
+  function transferFrom(address _from, address _to, uint _value) returns (bool) {
     uint _allowance = allowed[_from][msg.sender];
 
-    balances[_to].add(_value);
-    balances[_from].sub(_value);
+    balances[_from] = balances[_from].sub(_value);
+    balances[_to] = balances[_to].add(_value);
     allowed[_from][msg.sender] = _allowance.sub(_value);
     Transfer(_from, _to, _value);
     return true;
@@ -83,7 +78,7 @@ contract StandardToken is ERC20 {
     //  allowance to zero by calling `approve(_spender, 0)` if it is not
     //  already 0 to mitigate the race condition described here:
     //  https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-    if ((_value != 0) && (allowed[msg.sender][_spender] != 0)) revert();
+    require((_value == 0) || (allowed[msg.sender][_spender] == 0));
 
     allowed[msg.sender][_spender] = _value;
     Approval(msg.sender, _spender, _value);
@@ -151,7 +146,7 @@ contract SimpleToken is StandardToken, Ownable {
   * Only distribution contract allowed
   */
   modifier onlyDistribution() {
-    if (msg.sender != distributionContract) revert();
+    require(msg.sender == distributionContract);
     _;
   }
 
@@ -160,7 +155,7 @@ contract SimpleToken is StandardToken, Ownable {
    *
    */
   modifier canTransfer(address _sender) {
-    if (!released) revert();
+    require(released);
     _;
   }
 
@@ -172,11 +167,12 @@ contract SimpleToken is StandardToken, Ownable {
   }
 
   /**
-   * Owner can allow a distribution contract to assign tokens, all balance is set to wallet address.
+   * Distribution contract sets its and wallet addresses. All token balance is assigned to wallet address.
    */
   function initialize(address _distributionContract, address _initialAddr) {
-    if (distributionContract != address(0)) revert();
-    if (_distributionContract == address(0) || _initialAddr == address(0)) revert();
+    // The function can start only once
+    require(distributionContract ==  address(0));
+    require((_distributionContract != address(0)) && (_initialAddr != address(0)));
     distributionContract = _distributionContract;
     balances[_initialAddr] = totalSupply;
   }
@@ -198,12 +194,12 @@ contract SimpleToken is StandardToken, Ownable {
     released = true;
   }
 
-  function transfer(address _to, uint _value) canTransfer(msg.sender) returns (bool success) {
+  function transfer(address _to, uint _value) canTransfer(msg.sender) returns (bool) {
     // Call StandardToken.transfer()
    return super.transfer(_to, _value);
   }
 
-  function transferFrom(address _from, address _to, uint _value) canTransfer(_from) returns (bool success) {
+  function transferFrom(address _from, address _to, uint _value) canTransfer(_from) returns (bool) {
     // Call StandardToken.transferForm()
     return super.transferFrom(_from, _to, _value);
   }
