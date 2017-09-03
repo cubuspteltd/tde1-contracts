@@ -87,9 +87,10 @@ contract SimpleDistribution is Haltable {
   /*
   * Contributors can make payment and receive their tokens
   */
-  function contribute() payable inState(States.Distribution) {
+  function buy() payable inState(States.Distribution) {
     require(msg.value > 0);
-    uint tokenAmount = msg.value * 1000;
+    uint price = 1000 * 10 ** 18 / 10 ** token.decimals(); // 1000 EMR = 1 ETH
+    uint tokenAmount = msg.value * price;
     contributeInternal(msg.sender, msg.value, tokenAmount);
   }
 
@@ -118,7 +119,7 @@ contract SimpleDistribution is Haltable {
   }
 
   function() payable {
-    revert();
+    buy();
   }
 
   /*
