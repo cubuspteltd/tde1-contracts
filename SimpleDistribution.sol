@@ -55,7 +55,7 @@ contract SimpleDistribution is Haltable {
   uint public loadedRefund = 0;         // wei amount for refund
   uint public weiRefunded = 0;          // wei amount refunded
   mapping (address => uint) public contributed;        // list of contributors
-  mapping (address => uint) public preallocated;        // list of preallocated tokens receivers
+  mapping (address => uint) public preallocatedTokens;        // list of preallocated tokens receivers
 
   enum States {Preparing, Distribution, Success, Failure, Refunding}
 
@@ -95,6 +95,7 @@ contract SimpleDistribution is Haltable {
   }
 
   function preallocate(address _receiver, uint _tokenAmount) onlyOwner {
+    preallocatedTokens[_receiver] = _tokenAmount;
     contributeInternal(_receiver, 0, _tokenAmount);
   }
 
