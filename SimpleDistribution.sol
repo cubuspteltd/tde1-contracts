@@ -95,7 +95,7 @@ contract SimpleDistribution is Haltable {
   }
 
   function preallocate(address _receiver, uint _tokenAmount) onlyOwner {
-    preallocatedTokens[_receiver] = _tokenAmount;
+    preallocatedTokens[_receiver] = preallocatedTokens[_receiver].add(_tokenAmount);
     contributeInternal(_receiver, 0, _tokenAmount);
   }
 
@@ -112,11 +112,12 @@ contract SimpleDistribution is Haltable {
    */
   function refund() inState(States.Refunding) {
     uint weiValue = contributed[msg.sender];
-    require(weiValue > 0);
+    require(weiValue <= loadedRefund && weiValue >= this.balance);
     contributed[msg.sender] = 0;
     weiRefunded = weiRefunded.add(weiValue);
-    Refund(msg.sender, weiValue);
+    loadedRefund = loadedRefund.sub(weiValue);
     msg.sender.transfer(weiValue);
+    Refund(msg.sender, weiValue);
   }
 
   function() payable {
