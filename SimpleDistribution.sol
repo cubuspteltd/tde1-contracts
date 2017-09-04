@@ -75,7 +75,7 @@ contract SimpleDistribution is Haltable {
   }
 
   function contributeInternal(address _receiver, uint _weiAmount, uint _tokenAmount) stopInEmergency internal {
-    if (contributed[_receiver] == 0) contributorsCount++;
+    if (contributed[_receiver] == 0 && _weiAmount > 0) contributorsCount++;
     contributed[_receiver] = contributed[_receiver].add(_weiAmount);
     tokensSold = tokensSold.add(_tokenAmount);
     weiTotal = weiTotal.add(_weiAmount);
