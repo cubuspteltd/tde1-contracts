@@ -224,19 +224,19 @@ contract SimpleToken is StandardToken, Ownable {
   }
 
   function transfer(address _to, uint _value) canTransfer(msg.sender) returns (bool) {
-    require(balances[initialAddress] >= _value);
+    require(balances[msg.sender] >= _value);
     // Call StandardToken.transfer()
    return super.transfer(_to, _value);
   }
 
   function transferFrom(address _from, address _to, uint _value) canTransfer(_from) returns (bool) {
-    require(balances[initialAddress] >= _value);
+    require(balances[_from] >= _value);
     // Call StandardToken.transferForm()
     return super.transferFrom(_from, _to, _value);
   }
 
   function approve(address _spender, uint _value) canTransfer(_spender) returns (bool) {
-    require(balances[initialAddress] >= _value);
+    require(balances[_spender] >= _value);
     // Call StandardToken.approve()
     return super.approve(_spender, _value);
   }
