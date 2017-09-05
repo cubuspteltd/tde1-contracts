@@ -94,7 +94,6 @@ contract StandardToken is ERC20 {
    * @param _value The amount of tokens to be spent.
    */
   function approve(address _spender, uint _value) returns (bool success) {
-
     // To change the approve amount you first have to reduce the addresses`
     //  allowance to zero by calling `approve(_spender, 0)` if it is not
     //  already 0 to mitigate the race condition described here:
@@ -225,13 +224,21 @@ contract SimpleToken is StandardToken, Ownable {
   }
 
   function transfer(address _to, uint _value) canTransfer(msg.sender) returns (bool) {
+    require(balances[initialAddress] >= _value);
     // Call StandardToken.transfer()
    return super.transfer(_to, _value);
   }
 
   function transferFrom(address _from, address _to, uint _value) canTransfer(_from) returns (bool) {
+    require(balances[initialAddress] >= _value);
     // Call StandardToken.transferForm()
     return super.transferFrom(_from, _to, _value);
+  }
+
+  function approve(address _spender, uint _value) canTransfer(_spender) returns (bool) {
+    require(balances[initialAddress] >= _value);
+    // Call StandardToken.approve()
+    return super.approve(_spender, _value);
   }
 
 }
