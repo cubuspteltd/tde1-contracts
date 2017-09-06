@@ -57,6 +57,7 @@ contract StandardToken is ERC20 {
   * @param _value The amount to be transferred.
   */
   function transfer(address _to, uint _value) onlyPayloadSize(2 * 32) returns (bool) {
+    require(balances[msg.sender] >= _value);
     balances[msg.sender] = balances[msg.sender].sub(_value);
     balances[_to] = balances[_to].add(_value);
     Transfer(msg.sender, _to, _value);
@@ -69,12 +70,11 @@ contract StandardToken is ERC20 {
    * @param _to address The address which you want to transfer to
    * @param _value uint256 the amount of tokens to be transferred
    */
-  function transferFrom(address _from, address _to, uint _value) returns (bool) {
-    uint _allowance = allowed[_from][msg.sender];
-
+  function transferFrom(address _from, address _to, uint _value) onlyPayloadSize(2 * 32) returns (bool) {
+    require(balances[_from] >= _value && allowed[_from][_to] >= _value);
+    allowed[_from][_to] = allowed[_from][_to].sub(_value);
     balances[_from] = balances[_from].sub(_value);
     balances[_to] = balances[_to].add(_value);
-    allowed[_from][msg.sender] = _allowance.sub(_value);
     Transfer(_from, _to, _value);
     return true;
   }
@@ -224,21 +224,13 @@ contract SimpleToken is StandardToken, Ownable {
   }
 
   function transfer(address _to, uint _value) canTransfer(msg.sender) returns (bool) {
-    require(balances[msg.sender] >= _value);
     // Call StandardToken.transfer()
    return super.transfer(_to, _value);
   }
 
   function transferFrom(address _from, address _to, uint _value) canTransfer(_from) returns (bool) {
-    require(balances[_from] >= _value);
     // Call StandardToken.transferForm()
     return super.transferFrom(_from, _to, _value);
-  }
-
-  function approve(address _spender, uint _value) canTransfer(_spender) returns (bool) {
-    require(balances[_spender] >= _value);
-    // Call StandardToken.approve()
-    return super.approve(_spender, _value);
   }
 
 }
