@@ -57,9 +57,11 @@ contract SimpleDistribution is Haltable {
   mapping (address => uint) public contributed;        // list of contributors
   mapping (address => uint) public preallocatedTokens;        // list of preallocated tokens receivers
 
-  enum States {Preparing, Distribution, Success, Failure, Refunding}
+  enum States {Initializing, Preparing, Distribution, Success, Failure, Refunding}
 
   event Contributed(address _contributor, uint _weiAmount, uint _tokenAmount);
+  event GoalReached(uint _weiAmount);
+  event LoadedRefund(address _address, uint _loadedRefund);
   event Refund(address _contributor, uint _weiAmount);
 
   function SimpleDistribution(SimpleToken _token, address _wallet, uint _start, uint _end, uint _weiGoal) {
@@ -74,7 +76,15 @@ contract SimpleDistribution is Haltable {
     wallet = _wallet;
   }
 
-  function contributeInternal(address _receiver, uint _weiAmount, uint _tokenAmount) stopInEmergency internal {
+  function getTokenAmount(uint _weiAmount) internal constant returns (uint) {
+    uint rate = 1000 * 10 ** 18 / 10 ** token.decimals(); // 1000 EMR = 1 ETH
+    uint tokenAmount = _weiAmount * rate;
+    if (getState() == States.Preparing)
+      tokenAmount *= 2;
+    return tokenAmount;
+  }
+
+  function contributeInternal(address _receiver, uint _weiAmount, uint _tokenAmount) internal {
     if (contributed[_receiver] == 0 && _weiAmount > 0) contributorsCount++;
     contributed[_receiver] = contributed[_receiver].add(_weiAmount);
     tokensSold = tokensSold.add(_tokenAmount);
@@ -87,14 +97,16 @@ contract SimpleDistribution is Haltable {
   /*
   * Contributors can make payment and receive their tokens
   */
-  function buy() payable inState(States.Distribution) {
+  function buy() payable stopInEmergency {
+    require(getState() == States.Preparing || getState() == States.Distribution);
     require(msg.value > 0);
-    uint price = 1000 * 10 ** 18 / 10 ** token.decimals(); // 1000 EMR = 1 ETH
-    uint tokenAmount = msg.value * price;
-    contributeInternal(msg.sender, msg.value, tokenAmount);
+    contributeInternal(msg.sender, msg.value, getTokenAmount(msg.value));
   }
 
-  function preallocate(address _receiver, uint _tokenAmount) onlyOwner {
+  /*
+  * Preallocate tokens for reserve, bounties etc.
+  */
+  function preallocate(address _receiver, uint _tokenAmount) onlyOwner stopInEmergency {
     preallocatedTokens[_receiver] = preallocatedTokens[_receiver].add(_tokenAmount);
     contributeInternal(_receiver, 0, _tokenAmount);
   }
@@ -105,6 +117,7 @@ contract SimpleDistribution is Haltable {
   function loadRefund() payable inState(States.Failure) {
     require(msg.value > 0);
     loadedRefund = loadedRefund.add(msg.value);
+    LoadedRefund(msg.sender, msg.value);
   }
 
   /*
