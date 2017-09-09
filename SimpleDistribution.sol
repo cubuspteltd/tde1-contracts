@@ -76,22 +76,8 @@ contract SimpleDistribution is Haltable {
     wallet = _wallet;
   }
 
-  function getTokenAmount(uint _weiAmount) internal constant returns (uint) {
-    uint rate = 1000 * 10 ** 18 / 10 ** token.decimals(); // 1000 EMR = 1 ETH
-    uint tokenAmount = _weiAmount * rate;
-    if (getState() == States.Preparing)
-      tokenAmount *= 2;
-    return tokenAmount;
-  }
-
-  function contributeInternal(address _receiver, uint _weiAmount, uint _tokenAmount) internal {
-    if (contributed[_receiver] == 0 && _weiAmount > 0) contributorsCount++;
-    contributed[_receiver] = contributed[_receiver].add(_weiAmount);
-    tokensSold = tokensSold.add(_tokenAmount);
-    weiTotal = weiTotal.add(_weiAmount);
-    token.distribute(_receiver, _tokenAmount);
-    wallet.transfer(_weiAmount);
-    Contributed(_receiver, _weiAmount, _tokenAmount);
+  function() payable {
+    buy();
   }
 
   /*
@@ -133,8 +119,14 @@ contract SimpleDistribution is Haltable {
     Refund(msg.sender, weiValue);
   }
 
-  function() payable {
-    buy();
+  function contributeInternal(address _receiver, uint _weiAmount, uint _tokenAmount) internal {
+    if (contributed[_receiver] == 0 && _weiAmount > 0) contributorsCount++;
+    contributed[_receiver] = contributed[_receiver].add(_weiAmount);
+    tokensSold = tokensSold.add(_tokenAmount);
+    weiTotal = weiTotal.add(_weiAmount);
+    token.distribute(_receiver, _tokenAmount);
+    wallet.transfer(_weiAmount);
+    Contributed(_receiver, _weiAmount, _tokenAmount);
   }
 
   /*
@@ -146,6 +138,14 @@ contract SimpleDistribution is Haltable {
     if (weiTotal >= weiGoal) return States.Success;
     if (now >= end && weiTotal < weiGoal && loadedRefund == 0) return States.Failure;
     if (loadedRefund > 0) return States.Refunding;
+  }
+
+  function getTokenAmount(uint _weiAmount) internal constant returns (uint) {
+    uint rate = 1000 * 10 ** 18 / 10 ** token.decimals(); // 1000 EMR = 1 ETH
+    uint tokenAmount = _weiAmount * rate;
+    if (getState() == States.Preparing)
+      tokenAmount *= 2;
+    return tokenAmount;
   }
 
   modifier inState(States _state) {
