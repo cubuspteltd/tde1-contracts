@@ -113,7 +113,8 @@ contract TokenDistribution is Haltable {
   /*
    * Allow load refunds back on the contract for the refunding.
    */
-  function loadRefund() payable inState(States.Failure) {
+  function loadRefund() payable {
+    require(getState() == States.Failure || getState() == States.Refunding);
     require(msg.value > 0);
     loadedRefund = loadedRefund.add(msg.value);
     LoadedRefund(msg.sender, msg.value);
