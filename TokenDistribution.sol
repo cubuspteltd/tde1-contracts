@@ -71,7 +71,8 @@ contract TokenDistribution is Haltable {
     _;
   }
 
-  function TokenDistribution(EmeraldToken _token, address _wallet, uint _presaleStart, uint _start, uint _end, uint _ethPresaleMaxNoDecimals, uint _ethGoalNoDecimals, uint _maxTokenCapNoDecimals) {
+  function TokenDistribution(EmeraldToken _token, address _wallet, uint _presaleStart, uint _start, uint _end, 
+    uint _ethPresaleMaxNoDecimals, uint _ethGoalNoDecimals, uint _maxTokenCapNoDecimals) {
     
     require(_token != address(0) && _wallet != address(0) && _presaleStart > 0 && _start > _presaleStart && _end > _start && _ethPresaleMaxNoDecimals > 0 
       && _ethGoalNoDecimals > _ethPresaleMaxNoDecimals && _maxTokenCapNoDecimals > 0);
@@ -136,7 +137,7 @@ contract TokenDistribution is Haltable {
     token.produceEmeralds(_receiver, _tokenAmount);
     if (_weiAmount > 0) 
       wallet.transfer(_weiAmount);
-    if (contributors[_receiver] == 0 && _weiAmount > 0) contributorsCount++;
+    if (contributors[_receiver] == 0) contributorsCount++;
     contributors[_receiver] = contributors[_receiver].add(_weiAmount);
     tokensSold = tokensSold.add(_tokenAmount);
     weiTotal = weiTotal.add(_weiAmount);
