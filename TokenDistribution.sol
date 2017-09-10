@@ -53,11 +53,13 @@ contract TokenDistribution is Haltable {
   uint public weiPresaleMax;            // maximum wei amount we can get during presale
   uint public contributorsCount = 0;    // number of contributors
   uint public weiTotal = 0;             // total wei amount we have received
+  uint public weiDistributed = 0;       // total wei amount we have received in Distribution state
   uint public maxCap;                   // maximum token supply
   uint public tokensSold = 0;           // tokens sold
   uint public loadedRefund = 0;         // wei amount for refund
   uint public weiRefunded = 0;          // wei amount refunded
   mapping (address => uint) public contributors;        // list of contributors
+  mapping (address => uint) public presale;             // list of presale contributors
 
   enum States {Preparing, Presale, Waiting, Distribution, Success, Failure, Refunding}
 
@@ -98,6 +100,12 @@ contract TokenDistribution is Haltable {
   function buy() payable stopInEmergency {
     require(getState() == States.Presale || getState() == States.Distribution);
     require(msg.value > 0);
+    if (getState() == States.Presale)
+      presale[msg.sender] = presale[msg.sender].add(msg.value);
+    else {
+      contributors[msg.sender] = contributors[msg.sender].add(msg.value);
+      weiDistributed = weiDistributed.add(msg.value);
+    }
     contributeInternal(msg.sender, msg.value, getTokenAmount(msg.value));
   }
 
@@ -105,7 +113,7 @@ contract TokenDistribution is Haltable {
   * Preallocate tokens for reserve, bounties etc.
   */
   function preallocate(address _receiver, uint _tokenAmountNoDecimals) onlyOwner stopInEmergency {
-    require(getState() != States.Failure && getState() != States.Refunding);
+    require(getState() != States.Failure && getState() != States.Refunding && !token.released());
     uint tokenAmount = _tokenAmountNoDecimals * 10 ** token.decimals();
     contributeInternal(_receiver, 0, tokenAmount);
   }
@@ -139,7 +147,6 @@ contract TokenDistribution is Haltable {
     if (_weiAmount > 0) 
       wallet.transfer(_weiAmount);
     if (contributors[_receiver] == 0) contributorsCount++;
-    contributors[_receiver] = contributors[_receiver].add(_weiAmount);
     tokensSold = tokensSold.add(_tokenAmount);
     weiTotal = weiTotal.add(_weiAmount);
     Contributed(_receiver, _weiAmount, _tokenAmount);
@@ -150,7 +157,7 @@ contract TokenDistribution is Haltable {
    */
   function refund() inState(States.Refunding) {
     uint weiValue = contributors[msg.sender];
-    require(weiValue <= loadedRefund && weiValue >= this.balance);
+    require(weiValue <= loadedRefund && weiValue <= this.balance);
     msg.sender.transfer(weiValue);
     contributors[msg.sender] = 0;
     weiRefunded = weiRefunded.add(weiValue);
