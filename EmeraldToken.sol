@@ -30,7 +30,7 @@ contract StandardToken is ERC20 {
   using SafeMath for uint;
 
   /* Actual balances of token holders */
-  mapping(address => uint) balances;
+  mapping (address => uint) balances;
 
   /* approve() allowances */
   mapping (address => mapping (address => uint)) allowed;
@@ -125,15 +125,7 @@ contract StandardToken is ERC20 {
  * functions, this simplifies the implementation of "user permissions".
  */
 contract Ownable {
-  address public owner;
-
-  /**
-   * @dev The Ownable constructor sets the original `owner` of the contract to the sender
-   * account.
-   */
-  function Ownable() {
-    owner = msg.sender;
-  }
+  address public owner = msg.sender;
 
   /**
    * @dev Throws if called by any account other than the owner.
@@ -148,37 +140,34 @@ contract Ownable {
    * @param newOwner The address to transfer ownership to.
    */
   function transferOwnership(address newOwner) onlyOwner {
-    require(newOwner != address(0));      
+    require(newOwner != address(0));
     owner = newOwner;
   }
 
 }
 
 
-contract SimpleToken is StandardToken, Ownable {
+contract EmeraldToken is StandardToken, Ownable {
 
   string public name;
   string public symbol;
   uint public decimals;
 
-  address public distributionContract = address(0);
-  address initialAddress = address(0);
+  mapping (address => bool) public producers;
 
   bool public released = false;
 
   /*
-  * Only distribution contract or owner allowed
+  * Only producer allowed
   */
-  modifier onlyDistribution() {
-    if (msg.sender != owner)
-      require(msg.sender == distributionContract);
+  modifier onlyProducer() {
+    require(producers[msg.sender] == true);
     _;
   }
 
   /**
    * Limit token transfer until the distribution is over.
    * Owner can transfer tokens anytime
-   *
    */
   modifier canTransfer(address _sender) {
     if (_sender != owner)
@@ -186,38 +175,40 @@ contract SimpleToken is StandardToken, Ownable {
     _;
   }
 
-  function SimpleToken(string _name, string _symbol, uint _totalSupply, uint _decimals, address _initialAddress) {
-    require(_initialAddress != address(0) && _totalSupply > 0 && _decimals > 0);
+  modifier inProduction() {
+    require(!released);
+    _;
+  }
+
+  function EmeraldToken(string _name, string _symbol, uint _decimals) {
+    require(_decimals > 0);
     name = _name;
     symbol = _symbol;
     decimals = _decimals;
-    totalSupply = _totalSupply;
-    initialAddress = _initialAddress;
-    balances[initialAddress] = totalSupply;
-  }
 
-  /**
-   * Owner sets distribution contract and wallet addresses. All token balance is assigned to wallet address.
-   */
-  function initialize(address _distributionContract) onlyOwner {
-    // The function can start only once
-    require(distributionContract ==  address(0) && _distributionContract != address(0));
-    distributionContract = _distributionContract;
+    // Make owner a producer of Emeralds
+    producers[msg.sender] = true;
   }
 
   /*
-  * This function sends tokens from wallet to contributors
-  * Only distribution contract can assign tokens
+  * Sets a producer's status
+  * Distribution contract can be a producer
   */
-  function distribute(address _receiver, uint _amount) onlyDistribution {
-    require(balances[initialAddress] >= _amount);
+  function setProducer(address _addr, bool _status) onlyOwner {
+    producers[_addr] = _status;
+  }
+
+  /*
+  * Creates new Emeralds
+  */
+  function produceEmeralds(address _receiver, uint _amount) onlyProducer inProduction {
     balances[_receiver] = balances[_receiver].add(_amount);
-    balances[initialAddress] = balances[initialAddress].sub(_amount);
-    Transfer(initialAddress, _receiver, _amount);
+    totalSupply = totalSupply.add(_amount);
+    Transfer(0, _receiver, _amount);
   }
 
   /**
-   * One way function to release the tokens to the wild.
+   * One way function to release the tokens to the wild. No more tokens can be created.
    */
   function releaseTokenTransfer() onlyOwner {
     released = true;
@@ -225,7 +216,7 @@ contract SimpleToken is StandardToken, Ownable {
 
   function transfer(address _to, uint _value) canTransfer(msg.sender) returns (bool) {
     // Call StandardToken.transfer()
-   return super.transfer(_to, _value);
+    return super.transfer(_to, _value);
   }
 
   function transferFrom(address _from, address _to, uint _value) canTransfer(_from) returns (bool) {
