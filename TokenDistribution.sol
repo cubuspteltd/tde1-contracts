@@ -105,7 +105,7 @@ contract TokenDistribution is Haltable {
   * Preallocate tokens for reserve, bounties etc.
   */
   function preallocate(address _receiver, uint _tokenAmountNoDecimals) onlyOwner stopInEmergency {
-    require(getState() == States.Preparing || getState() == States.Presale || getState() == States.Distribution);
+    require(getState() != States.Failure && getState() != States.Refunding);
     uint tokenAmount = _tokenAmountNoDecimals * 10 ** token.decimals();
     contributeInternal(_receiver, 0, tokenAmount);
   }
