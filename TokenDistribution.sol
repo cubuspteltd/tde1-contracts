@@ -158,10 +158,10 @@ contract TokenDistribution is Haltable {
   function refund() inState(States.Refunding) {
     uint weiValue = contributors[msg.sender];
     require(weiValue <= loadedRefund && weiValue <= this.balance);
-    msg.sender.transfer(weiValue);
     contributors[msg.sender] = 0;
     weiRefunded = weiRefunded.add(weiValue);
     loadedRefund = loadedRefund.sub(weiValue);
+    msg.sender.transfer(weiValue);
     Refund(msg.sender, weiValue);
   }
 
